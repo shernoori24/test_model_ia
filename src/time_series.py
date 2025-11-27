@@ -58,14 +58,9 @@ def build_series_from_df(df: pd.DataFrame, date_col='Date inscription', fallback
 
     # Set index and resample according to requested frequency
     idx = df.set_index('Effective Date')
-    # normalize incoming freq strings and accept common aliases in any case
-    freq_map = {
-        'monthly': 'MS', 'm': 'MS', 'ms': 'MS', 'MS': 'MS', 'M': 'MS',
-        # prefer YS (YearStart) — pandas prefers 'YS' over 'AS'
-        'yearly': 'YS', 'y': 'YS', 'ys': 'YS', 'Y': 'YS', 'AS': 'YS', 'YS': 'YS', 'as': 'YS'
-    }
-    normalized = freq.lower() if isinstance(freq, str) else freq
-    alias = freq_map.get(normalized, freq)
+    # Map frequency to pandas offset alias
+    freq_map = {'monthly': 'MS', 'yearly': 'YS'}
+    alias = freq_map.get(freq.lower() if isinstance(freq, str) else freq, freq)
 
     # Count items per period and name the series clearly
     series_name = 'Monthly Registrations' if str(alias).upper() in ('MS', 'M') else 'Yearly Registrations'
@@ -73,17 +68,7 @@ def build_series_from_df(df: pd.DataFrame, date_col='Date inscription', fallback
     return out
 
 
-def build_monthly_series_from_df(df: pd.DataFrame, date_col='Date inscription', fallback_col='Première venue') -> pd.Series:
-    """Backward-compatible wrapper that returns a monthly series (keeps original API)."""
-    return build_series_from_df(df, date_col=date_col, fallback_col=fallback_col, freq='monthly')
-
-
 def build_series_from_file(path: str, **kwargs) -> pd.Series:
-    """Load a DataFrame from an Excel file then build a time series (wrapper for file input)."""
+    """Load a DataFrame from an Excel file then build a time series."""
     df = pd.read_excel(path)
     return build_series_from_df(df, **kwargs)
-
-
-def build_monthly_series_from_file(path: str, **kwargs) -> pd.Series:
-    # keep compatibility with callers that expect this name
-    return build_series_from_file(path, **kwargs)

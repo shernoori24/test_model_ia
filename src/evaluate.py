@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import warnings
-from statsmodels.tools.sm_exceptions import ConvergenceWarning as SMConvergenceWarning
 from statsmodels.tsa.arima.model import ARIMA
+from src.utils import suppress_arima_warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
 
@@ -52,10 +52,7 @@ def walk_forward_arima(series: pd.Series, order=(2, 1, 2), initial_train=24):
 
         try:
             model = ARIMA(train, order=order)
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="Non-invertible starting MA parameters found.*")
-                warnings.filterwarnings("ignore", message="Non-stationary starting autoregressive parameters found.*")
-                warnings.filterwarnings("ignore", category=SMConvergenceWarning)
+            with suppress_arima_warnings():
                 fit = model.fit()
             forecast = fit.forecast(steps=1)
             yhat = forecast.iloc[0]
