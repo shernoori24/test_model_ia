@@ -42,3 +42,27 @@ def test_evaluate_models_on_synthetic():
     else:
         assert all(k in val for k in ('MAE', 'RMSE', 'MAPE', 'R2'))
         assert pytest_float(val['MAE'])
+
+
+    def make_synthetic_yearly(n=20, seed=0):
+        rng = np.random.RandomState(seed)
+        idx = pd.date_range(end=pd.Timestamp.today(), periods=n, freq='AS')
+        t = np.arange(n)
+        trend = 0.5 * t
+        noise = rng.normal(scale=2.0, size=n)
+        values = np.maximum(50 + trend + noise, 0)
+        return pd.Series(values, index=idx)
+
+
+    def test_evaluate_models_on_synthetic_yearly():
+        series = make_synthetic_yearly(20)
+        # use a smaller initial train for years
+        results = evaluate_models(series, initial_arima=5)
+
+        assert 'arima' in results
+        val = results['arima']
+        if 'error' in val:
+            assert isinstance(val['error'], str)
+        else:
+            assert all(k in val for k in ('MAE', 'RMSE', 'MAPE', 'R2'))
+            assert pytest_float(val['MAE'])
