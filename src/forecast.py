@@ -20,9 +20,8 @@ import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning as SMConvergenceWarning
 from statsmodels.graphics.tsaplots import plot_acf
 
-from src.ts_utils import build_monthly_series_from_file
-from src.models_eval import walk_forward_arima
-from src.metrics import compute_all
+from src.time_series import build_monthly_series_from_file
+from src.evaluate import walk_forward_arima, compute_metrics
 
 
 def ensure_out_dir():
@@ -70,7 +69,7 @@ def run(args):
     # Walk-forward with selected order
     print('Evaluating with walk-forward...')
     actuals, preds = walk_forward_arima(series, order=order, initial_train=args.initial_train)
-    metrics = compute_all(actuals, preds)
+    metrics = compute_metrics(actuals, preds)
     print('Walk-forward metrics:', json.dumps(metrics, indent=2))
 
     # Fit on full series and forecast

@@ -32,10 +32,10 @@ Notes:
 This small toolkit prepares a monthly registrations time series and evaluates forecasting models (ARIMA) using walk-forward validation with standard metrics (MAE, RMSE, MAPE, R²).
 
 Files added:
-- `src/etl.py` — loading + robust date parsing + building a continuous monthly series
-- `src/models_eval.py` — walk-forward evaluation for ARIMA and metric computation
-- `run_evaluation.py` — CLI to evaluate your file or run a synthetic test
-- `tests/test_models_eval.py` — lightweight tests verifying metrics and evaluation using synthetic data
+- `src/data_loader.py` — loading + robust date parsing + building a continuous monthly series
+- `src/evaluate.py` — walk-forward evaluation for ARIMA and metric computation
+- `run.py` — CLI to evaluate your file or run a synthetic test
+- `tests/test_evaluate.py` — lightweight tests verifying metrics and evaluation using synthetic data
 - `requirements.txt` — pinned dependencies
 
 Quick start:
@@ -51,13 +51,13 @@ pip install -r requirements.txt
 2. Run synthetic verification (no data required):
 
 ```powershell
-python run_evaluation.py --synthetic
+python run.py --synthetic
 ```
 
-3. Run against your dataset (replace path):
+3. Run against your dataset (uses default data/inscription.xlsx):
 
 ```powershell
-python run_evaluation.py --file "C:/path/to/inscription.xlsx"
+python run.py
 ```
 
 Notes:

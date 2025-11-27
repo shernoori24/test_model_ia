@@ -1,8 +1,5 @@
 """Time series helper functions for this project."""
-from __future__ import annotations
-
 import pandas as pd
-from typing import Optional
 
 
 def build_monthly_series_from_df(df: pd.DataFrame, date_col='Date inscription', fallback_col='Première venue') -> pd.Series:

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from src.models_eval import compute_metrics, evaluate_models
+from src.evaluate import compute_metrics, evaluate_models
 
 
 def make_synthetic(n=120, seed=0):

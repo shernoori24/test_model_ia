@@ -1,26 +1,16 @@
-"""Model evaluation helpers for time-series forecasting.
-
-Provides walk-forward validation and metric computation for ARIMA and ETS models.
-"""
-from __future__ import annotations
-
+"""Model evaluation for time-series forecasting."""
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning as SMConvergenceWarning
-
-# Silence known sklearn deprecation chatter (coming from inner sklearn/pandas internals)
-warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
-
 from statsmodels.tsa.arima.model import ARIMA
+
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
 
 
 def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
-    """Return MAE, RMSE, MAPE, R2 for arrays of equal length.
-
-    y_true and y_pred should be 1-D numeric arrays of same length.
-    """
+    """Return MAE, RMSE, MAPE, R2 for arrays of equal length."""
     mask = ~np.isnan(y_pred)
     y_true = np.array(y_true)[mask]
     y_pred = np.array(y_pred)[mask]
@@ -30,7 +20,6 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
 
     mae = mean_absolute_error(y_true, y_pred)
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    # Avoid division by zero in MAPE
     denom = np.where(y_true == 0, np.nan, np.abs(y_true))
     mape = np.nanmean(np.abs((y_true - y_pred) / denom)) * 100.0
     r2 = r2_score(y_true, y_pred)
@@ -39,12 +28,7 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
 
 
 def walk_forward_arima(series: pd.Series, order=(2, 1, 2), initial_train=24):
-    """Walk-forward validation using ARIMA; returns (actuals, preds) arrays.
-
-    - series: pd.Series indexed by pd.DatetimeIndex
-    - order: (p,d,q)
-    - initial_train: number of months to use for first training window
-    """
+    """Walk-forward validation using ARIMA; returns (actuals, preds) arrays."""
     if not isinstance(series.index, pd.DatetimeIndex):
         raise ValueError("series must have a DatetimeIndex")
 
@@ -61,15 +45,10 @@ def walk_forward_arima(series: pd.Series, order=(2, 1, 2), initial_train=24):
 
         try:
             model = ARIMA(train, order=order)
-            # fit can emit a lot of warnings when run repeatedly in a loop.
-            # Use a conservative, robust optimizer configuration and suppress
-            # a few known (harmless) start-up warnings to reduce console noise.
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="Non-invertible starting MA parameters found.*")
                 warnings.filterwarnings("ignore", message="Non-stationary starting autoregressive parameters found.*")
                 warnings.filterwarnings("ignore", category=SMConvergenceWarning)
-                # method_kwargs are forwarded to the optimizer (scipy) in many statsmodels versions
-                # Use default estimator but silence known benign startup warnings
                 fit = model.fit()
             forecast = fit.forecast(steps=1)
             yhat = forecast.iloc[0]
@@ -82,20 +61,10 @@ def walk_forward_arima(series: pd.Series, order=(2, 1, 2), initial_train=24):
     return np.array(actuals), np.array(preds)
 
 
-
-
 def evaluate_models(series: pd.Series, initial_arima=24, order=(2, 1, 2)):
-    """Evaluate ARIMA via walk-forward and return metric dict.
-
-    Returns: dict { 'arima': metrics_dict }
-    """
-    res = {}
-
-    # ARIMA
+    """Evaluate ARIMA via walk-forward and return metric dict."""
     try:
         y_arima, yhat_arima = walk_forward_arima(series, order=order, initial_train=initial_arima)
-        res['arima'] = compute_metrics(y_arima, yhat_arima)
+        return {'arima': compute_metrics(y_arima, yhat_arima)}
     except Exception as ex:
-        res['arima'] = {'error': str(ex)}
-
-    return res
+        return {'arima': {'error': str(ex)}}
