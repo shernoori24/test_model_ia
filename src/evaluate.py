@@ -22,7 +22,14 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     denom = np.where(y_true == 0, np.nan, np.abs(y_true))
     mape = np.nanmean(np.abs((y_true - y_pred) / denom)) * 100.0
-    r2 = r2_score(y_true, y_pred)
+    # r2_score requires at least two samples and non-constant y_true; return nan when undefined
+    try:
+        if len(y_true) < 2 or np.nanstd(y_true) == 0:
+            r2 = np.nan
+        else:
+            r2 = r2_score(y_true, y_pred)
+    except Exception:
+        r2 = np.nan
 
     return {'MAE': float(mae), 'RMSE': float(rmse), 'MAPE': float(mape), 'R2': float(r2)}
 

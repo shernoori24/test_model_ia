@@ -58,17 +58,14 @@ def build_series_from_df(df: pd.DataFrame, date_col='Date inscription', fallback
 
     # Set index and resample according to requested frequency
     idx = df.set_index('Effective Date')
+    # normalize incoming freq strings and accept common aliases in any case
     freq_map = {
-        'monthly': 'MS', 'M': 'MS', 'MS': 'MS',
+        'monthly': 'MS', 'm': 'MS', 'ms': 'MS', 'MS': 'MS', 'M': 'MS',
         # prefer YS (YearStart) — pandas prefers 'YS' over 'AS'
-        'yearly': 'YS', 'y': 'YS', 'Y': 'YS', 'AS': 'YS', 'YS': 'YS'
+        'yearly': 'YS', 'y': 'YS', 'ys': 'YS', 'Y': 'YS', 'AS': 'YS', 'YS': 'YS', 'as': 'YS'
     }
     normalized = freq.lower() if isinstance(freq, str) else freq
-    if normalized in freq_map:
-        alias = freq_map[normalized]
-    else:
-        # if the user passed a pandas alias directly, try to use it
-        alias = freq
+    alias = freq_map.get(normalized, freq)
 
     # Count items per period and name the series clearly
     series_name = 'Monthly Registrations' if str(alias).upper() in ('MS', 'M') else 'Yearly Registrations'

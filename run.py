@@ -1,5 +1,4 @@
 ﻿"""Evaluate forecasting models and print metrics."""
-import argparse
 import json
 import sys
 from pathlib import Path
@@ -15,16 +14,10 @@ DATA_FILE = "data/inscription.xlsx"
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--freq', type=str, default='monthly', choices=['monthly', 'yearly'],
-                        help='Frequency of the input series (monthly or yearly)')
-    parser.add_argument('--initial-train-monthly', type=int, default=24,
-                        help='Initial training size for monthly walk-forward (in months)')
-    parser.add_argument('--initial-train-yearly', type=int, default=5,
-                        help='Initial training size for yearly walk-forward (in years)')
-    parser.add_argument('--horizon-yearly', type=int, default=5,
-                        help='Number of years to forecast for yearly series')
-    args = parser.parse_args()
+    # Use fixed defaults so `run.py` can be run without CLI args
+    initial_train_monthly = 24
+    initial_train_yearly = 5
+    horizon_yearly = 5
 
     p = Path(DATA_FILE)
     if not p.exists():
@@ -34,7 +27,7 @@ def main():
     # Evaluate monthly series (existing behaviour)
     series_monthly = build_series_from_file(str(p), freq='monthly')
     print('Monthly series length:', len(series_monthly))
-    results_monthly = evaluate_models(series_monthly, initial_arima=args.initial_train_monthly)
+    results_monthly = evaluate_models(series_monthly, initial_arima=initial_train_monthly)
     print('\nMonthly evaluation results:')
     print(json.dumps(results_monthly, indent=2))
 
@@ -42,7 +35,7 @@ def main():
     series_yearly = build_series_from_file(str(p), freq='yearly')
     print('\nYearly series length:', len(series_yearly))
     try:
-        results_yearly = evaluate_models(series_yearly, initial_arima=args.initial_train_yearly)
+        results_yearly = evaluate_models(series_yearly, initial_arima=initial_train_yearly)
     except Exception as ex:
         results_yearly = {'arima': {'error': str(ex)}}
     print('\nYearly evaluation results:')
@@ -55,9 +48,9 @@ def main():
         am = fit_auto_arima(series_yearly, freq='yearly')
         order = am.order
         print('Selected order for yearly ARIMA:', order)
-        res, mean, conf = fit_and_forecast_full(series_yearly, order=order, steps=args.horizon_yearly)
+        res, mean, conf = fit_and_forecast_full(series_yearly, order=order, steps=horizon_yearly)
 
-        idx = pd.date_range(start=series_yearly.index[-1] + pd.offsets.YearBegin(1), periods=args.horizon_yearly, freq='YS')
+        idx = pd.date_range(start=series_yearly.index[-1] + pd.offsets.YearBegin(1), periods=horizon_yearly, freq='YS')
         df_f = pd.DataFrame({'forecast': mean.values, 'lower': conf.iloc[:, 0].values, 'upper': conf.iloc[:, 1].values}, index=idx)
         out_csv = out / 'arima_forecast_yearly.csv'
         df_f.to_csv(out_csv)

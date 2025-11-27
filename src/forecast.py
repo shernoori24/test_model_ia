@@ -6,7 +6,6 @@ Produces:
 - saved plots at `outputs/arima_forecast.png`, `outputs/arima_residuals.png`, `outputs/arima_acf.png`
 """
 import os
-import argparse
 import json
 from pathlib import Path
 
@@ -57,89 +56,92 @@ def fit_and_forecast_full(series, order, steps=12):
     return res, mean, conf
 
 
-def run(args):
-    if args.file:
-        # build frequency-aware series from file
-        series = build_series_from_file(args.file, freq=args.freq)
-    else:
+def run(file: str = 'data/inscription.xlsx', initial_train: int = 24, horizon: int = 12):
+    """Run forecasting workflow for both monthly and yearly frequencies.
+
+    Parameters are defaults so the function can be called without CLI arguments.
+    """
+    if not file:
         raise SystemExit('file argument required')
 
     out = ensure_out_dir()
+    results = {}
 
-    print('Running auto_arima (this may take a minute)...')
-    am = fit_auto_arima(series, freq=args.freq)
-    order = am.order
-    seasonal_order = am.seasonal_order
-    print('Selected order:', order, 'seasonal_order:', seasonal_order)
+    for freq in ('monthly', 'yearly'):
+        series = build_series_from_file(file, freq=freq)
 
-    # Walk-forward with selected order
-    print('Evaluating with walk-forward...')
-    actuals, preds = walk_forward_arima(series, order=order, initial_train=args.initial_train)
-    metrics = compute_metrics(actuals, preds)
-    print('Walk-forward metrics:', json.dumps(metrics, indent=2))
+        print('Running auto_arima (this may take a minute)...')
+        am = fit_auto_arima(series, freq=freq)
+        order = am.order
+        seasonal_order = am.seasonal_order
+        print('Selected order:', order, 'seasonal_order:', seasonal_order)
 
-    # Fit on full series and forecast
-    print(f'Fitting final ARIMA{order} on full series and forecasting {args.horizon} steps...')
-    res, mean, conf = fit_and_forecast_full(series, order=order, steps=args.horizon)
+        # Walk-forward with selected order
+        print('Evaluating with walk-forward...')
+        actuals, preds = walk_forward_arima(series, order=order, initial_train=initial_train)
+        metrics = compute_metrics(actuals, preds)
+        print('Walk-forward metrics:', json.dumps(metrics, indent=2))
 
-    # Save forecast CSV — build index according to frequency
-    if str(args.freq).lower() in ('monthly', 'm', 'ms'):
-        start_offset = pd.offsets.MonthBegin(1)
-        idx = pd.date_range(start=series.index[-1] + start_offset, periods=args.horizon, freq='MS')
-    else:
-        # yearly forecasting — use YearBegin / 'YS' (year start alignment)
-        start_offset = pd.offsets.YearBegin(1)
-        idx = pd.date_range(start=series.index[-1] + start_offset, periods=args.horizon, freq='YS')
-    df_f = pd.DataFrame({'forecast': mean.values, 'lower': conf.iloc[:, 0].values, 'upper': conf.iloc[:, 1].values}, index=idx)
-    # use a descriptive filename that includes the frequency (monthly/yearly)
-    freq_key = 'monthly' if str(args.freq).lower() in ('monthly', 'm', 'ms') else 'yearly'
-    out_csv = out / f'arima_forecast_{freq_key}.csv'
-    df_f.to_csv(out_csv)
-    print('Saved forecast CSV to', out_csv)
+        # Fit on full series and forecast
+        print(f'Fitting final ARIMA{order} on full series and forecasting {horizon} steps...')
+        res, mean, conf = fit_and_forecast_full(series, order=order, steps=horizon)
 
-    # Plot historical + forecast
-    fig, ax = plt.subplots(figsize=(10, 5))
-    series.plot(ax=ax, label='history')
-    df_f['forecast'].plot(ax=ax, label='forecast')
-    ax.fill_between(df_f.index, df_f['lower'], df_f['upper'], color='gray', alpha=0.3)
-    ax.legend()
-    ax.set_title(f'ARIMA{order} forecast')
-    fig_path = out / f'arima_forecast_{freq_key}.png'
-    fig.savefig(fig_path, bbox_inches='tight')
-    plt.close(fig)
-    print('Saved forecast plot to', fig_path)
+        # Save forecast CSV — build index according to frequency
+        if str(freq).lower() in ('monthly', 'm', 'ms'):
+            start_offset = pd.offsets.MonthBegin(1)
+            idx = pd.date_range(start=series.index[-1] + start_offset, periods=horizon, freq='MS')
+            freq_key = 'monthly'
+        else:
+            # yearly forecasting — use YearBegin / 'YS' (year start alignment)
+            start_offset = pd.offsets.YearBegin(1)
+            idx = pd.date_range(start=series.index[-1] + start_offset, periods=horizon, freq='YS')
+            freq_key = 'yearly'
 
-    # Residuals
-    resid = res.resid
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6))
-    resid.plot(ax=ax[0], title='Residuals')
-    resid.hist(ax=ax[1], bins=30)
-    ax[1].set_title('Residuals histogram')
-    resid_path = out / f'arima_residuals_{freq_key}.png'
-    fig.savefig(resid_path, bbox_inches='tight')
-    plt.close(fig)
-    print('Saved residuals plot to', resid_path)
+        df_f = pd.DataFrame({'forecast': mean.values, 'lower': conf.iloc[:, 0].values, 'upper': conf.iloc[:, 1].values}, index=idx)
+        out_csv = out / f'arima_forecast_{freq_key}.csv'
+        df_f.to_csv(out_csv)
+        print('Saved forecast CSV to', out_csv)
 
-    # ACF
-    fig = plt.figure(figsize=(8, 4))
-    plot_acf(resid.dropna(), lags=36, ax=plt.gca())
-    acf_path = out / f'arima_acf_{freq_key}.png'
-    plt.tight_layout()
-    plt.savefig(acf_path)
-    plt.close()
-    print('Saved ACF plot to', acf_path)
+        # Plot historical + forecast
+        fig, ax = plt.subplots(figsize=(10, 5))
+        series.plot(ax=ax, label='history')
+        df_f['forecast'].plot(ax=ax, label='forecast')
+        ax.fill_between(df_f.index, df_f['lower'], df_f['upper'], color='gray', alpha=0.3)
+        ax.legend()
+        ax.set_title(f'ARIMA{order} forecast')
+        fig_path = out / f'arima_forecast_{freq_key}.png'
+        fig.savefig(fig_path, bbox_inches='tight')
+        plt.close(fig)
+        print('Saved forecast plot to', fig_path)
 
-    return {'order': order, 'seasonal_order': seasonal_order, 'walk_metrics': metrics, 'forecast_csv': str(out_csv), 'freq': freq_key}
+        # Residuals
+        resid = res.resid
+        fig, ax = plt.subplots(2, 1, figsize=(10, 6))
+        resid.plot(ax=ax[0], title='Residuals')
+        resid.hist(ax=ax[1], bins=30)
+        ax[1].set_title('Residuals histogram')
+        resid_path = out / f'arima_residuals_{freq_key}.png'
+        fig.savefig(resid_path, bbox_inches='tight')
+        plt.close(fig)
+        print('Saved residuals plot to', resid_path)
+
+        # ACF
+        fig = plt.figure(figsize=(8, 4))
+        plot_acf(resid.dropna(), lags=36, ax=plt.gca())
+        acf_path = out / f'arima_acf_{freq_key}.png'
+        plt.tight_layout()
+        plt.savefig(acf_path)
+        plt.close()
+        print('Saved ACF plot to', acf_path)
+
+        # store per-frequency result summary
+        results[freq_key] = {'order': order, 'seasonal_order': seasonal_order, 'walk_metrics': metrics, 'forecast_csv': str(out_csv)}
+
+    return results
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, required=True, help='Excel path to build monthly series')
-    parser.add_argument('--initial-train', type=int, default=24)
-    parser.add_argument('--horizon', type=int, default=12)
-    parser.add_argument('--freq', type=str, default='monthly', choices=['monthly', 'yearly'],
-                        help='Frequency of the input series (monthly or yearly)')
-    args = parser.parse_args()
-    res = run(args)
+    # Run with defaults — no CLI parsing (script is runnable without args)
+    res = run()
     print('\nSummary:')
     print(json.dumps(res, indent=2))

@@ -1,7 +1,3 @@
-# Use Python 3.11 for best wheel compatibility on Windows.
-# These pins prefer versions that are known to have prebuilt wheels for CPython 3.11
-# If you use conda, prefer using conda-forge channel instead of pip for binaries (recommended).
-
 pandas==2.1.3
 numpy==1.26.4
 matplotlib==3.7.2
