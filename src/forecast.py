@@ -2,7 +2,7 @@
 
 Produces:
 - printed summary (order, walk-forward metrics)
-- saved forecast CSV at `outputs/arima_forecast.csv`
+- saved forecast json at `outputs/arima_forecast.json`
 - saved plots at `outputs/arima_forecast.png`, `outputs/arima_residuals.png`, `outputs/arima_acf.png`
 """
 import os
@@ -108,9 +108,9 @@ def run(file: str = 'data/inscription.xlsx',
                 freq_key = 'yearly'
 
             df_f = pd.DataFrame({'forecast': mean.values, 'lower': conf.iloc[:, 0].values, 'upper': conf.iloc[:, 1].values}, index=idx)
-            out_csv = out / f'arima_forecast_{freq_key}.csv'
-            df_f.to_csv(out_csv)
-            print('Saved forecast CSV to', out_csv)
+            out_json = out / f'arima_forecast_{freq_key}.json'
+            df_f.to_json(out_json, orient='index', date_format='iso', indent=2)
+            print('Saved forecast JSON to', out_json)
 
             # Plot historical + forecast
             fig, ax = plt.subplots(figsize=(10, 5))
@@ -149,7 +149,7 @@ def run(file: str = 'data/inscription.xlsx',
                 print('Saved ACF plot to', acf_path)
             
             # store per-frequency result summary
-            results[freq_key] = {'order': order, 'seasonal_order': seasonal_order, 'walk_metrics': metrics, 'forecast_csv': str(out_csv)}
+            results[freq_key] = {'order': order, 'seasonal_order': seasonal_order, 'walk_metrics': metrics, 'forecast_json': str(out_json)}
 
         except Exception as ex:
             print(f"Error processing {freq} series: {ex}")
